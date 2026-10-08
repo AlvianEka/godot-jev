@@ -14,6 +14,10 @@ config/name="Godot Jev"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Jev="*uid://bdka2fwkdr7fs"
+
 [display]
 
 window/stretch/mode="canvas_items"
