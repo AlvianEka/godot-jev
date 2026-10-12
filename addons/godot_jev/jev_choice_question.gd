@@ -3,10 +3,10 @@ extends JevQuestion
 ## Categorical classification question that selects one winning candidate from criteria.
 
 ## Map of candidate keys to their descriptive criteria text, or null.
-@export var criteria: Dictionary = {}
+@export var criteria: Dictionary = { }
 
 
-func _init(instructions: Variant = "", criteria: Dictionary = {}) -> void:
+func _init(instructions: Variant = "", criteria: Dictionary = { }) -> void:
 	super(instructions)
 	self.criteria = criteria
 

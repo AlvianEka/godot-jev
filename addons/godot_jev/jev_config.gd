@@ -3,16 +3,18 @@ extends RefCounted
 ## Project settings keys and default configuration values for Jev.
 
 enum Type {
-	API_KEY = 1 << 0,
-	BASE_URL = 1 << 1,
-	ENDPOINT = 1 << 2,
-	MODEL = 1 << 3,
-	TIMEOUT = 1 << 4,
-	MAX_RETRIES = 1 << 5,
+	API_KEY,
+	BASE_URL,
+	SYSTEMONE,
+	MODELS,
+	DEFAULT_MODEL,
+	TIMEOUT,
+	MAX_RETRIES,
 }
 
 const BASE_URL: String = "https://api.typesafe.ai"
-const ENDPOINT: String = "/v1/systemone"
+const SYSTEMONE: String = "/v1/systemone"
+const MODELS: String = "/v1/models"
 const MODEL_LATEST: String = "jev-latest"
 const MODEL_PREVIEW: String = "jev-preview"
 const MODEL_JEV_1_13_0: String = "jev-1.13.0"
@@ -21,18 +23,20 @@ const MAX_RETRIES: int = 3
 
 const SETTINGS_NAME: Dictionary[Type, String] = {
 	Type.API_KEY: "jev/config/api_key",
-	Type.BASE_URL: "jev/config/base_url",
-	Type.ENDPOINT: "jev/config/endpoint",
-	Type.MODEL: "jev/config/model",
+	Type.DEFAULT_MODEL: "jev/config/default_model",
 	Type.TIMEOUT: "jev/config/timeout",
 	Type.MAX_RETRIES: "jev/config/max_retries",
+	Type.BASE_URL: "jev/endpoint/base_url",
+	Type.SYSTEMONE: "jev/endpoint/systemone",
+	Type.MODELS: "jev/endpoint/models",
 }
 
 const DEFAULT = {
 	Type.API_KEY: "",
 	Type.BASE_URL: BASE_URL,
-	Type.ENDPOINT: ENDPOINT,
-	Type.MODEL: MODEL_LATEST,
+	Type.SYSTEMONE: SYSTEMONE,
+	Type.MODELS: MODELS,
+	Type.DEFAULT_MODEL: MODEL_LATEST,
 	Type.TIMEOUT: TIMEOUT,
 	Type.MAX_RETRIES: MAX_RETRIES,
 }
@@ -51,13 +55,15 @@ static func init() -> void:
 			ProjectSettings.set_setting(setting_name, default_value)
 		ProjectSettings.set_initial_value(setting_name, default_value)
 		ProjectSettings.add_property_info({ "name": setting_name, "type": value_type })
+		ProjectSettings.set_as_basic(setting_name, true)
 
 	register_setting.call(Type.API_KEY)
-	register_setting.call(Type.BASE_URL)
-	register_setting.call(Type.ENDPOINT)
-	register_setting.call(Type.MODEL)
+	register_setting.call(Type.DEFAULT_MODEL)
 	register_setting.call(Type.TIMEOUT)
 	register_setting.call(Type.MAX_RETRIES)
+	register_setting.call(Type.BASE_URL)
+	register_setting.call(Type.SYSTEMONE)
+	register_setting.call(Type.MODELS)
 
 
 ## Returns the value of a Jev project setting, or its default.

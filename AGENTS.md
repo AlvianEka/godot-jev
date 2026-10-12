@@ -4,8 +4,9 @@
 
 ## Core Architecture
 
-- **`Jev` Autoload**: Singleton entry point (`Jev.evaluate(state, questions, model)`). Manages HTTP worker pooling, request serialization, and retries.
-- **`JevEvaluation`**: RefCounted async handle returned by `Jev.evaluate()`. Emits `finished(evaluation: JevEvaluation)`. Supports node binding via `eval.bind_node(self)` for auto-cancellation on scene exit.
+- **`Jev` Autoload**: Singleton entry point (`Jev.evaluate()`, shortcuts `Jev.choice()`, `Jev.score()`, `Jev.noul()`, and `Jev.list_models()`). Manages HTTP worker pooling, request serialization, and retries.
+- **`JevEvaluation`**: RefCounted async handle returned by `Jev.evaluate()` and shortcuts. Emits `finished(evaluation: JevEvaluation)`. Supports node binding via `eval.bind_node(self)` for auto-cancellation on scene exit.
+- **`JevModelsRequest`**: RefCounted async handle returned by `Jev.list_models()`. Emits `finished(request: JevModelsRequest)`.
 - **`JevQuestion`**: Declarative question resources (`JevChoiceQuestion`, `JevScoreQuestion`, `JevNoulQuestion`) created via factory methods (`JevQuestion.choice()`, `JevQuestion.score()`, `JevQuestion.noul()`) or plain dictionaries.
 - **`JevAnswer`**: Typed answer container (`choice`, `score`, `noul`, `confidence`, `probabilities`, `legend`).
 - **`JevError`**: Structured failure payload (`code`, `http_status`, `message`, `details`).

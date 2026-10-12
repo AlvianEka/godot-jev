@@ -89,7 +89,7 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		return evaluation
 
 	var effective_model := _get_effective_model(model)
-	var effective_url := _get_effective_base_url() + _get_effective_endpoint()
+	var effective_url := _get_effective_systemone_endpoint()
 	var effective_timeout := _get_effective_timeout()
 
 	var request_body: Dictionary = {
@@ -106,6 +106,63 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		effective_timeout,
 	)
 	return evaluation
+
+
+## Evaluates a single Choice question and returns an async handle.
+func choice(
+	state: Variant,
+	instructions: Variant,
+	criteria: Dictionary,
+	model: String = "",
+) -> JevEvaluation:
+	var q: Variant = instructions
+	if not (q is JevChoiceQuestion or (q is Dictionary and str(q.get("type", "")) == "choice")):
+		q = JevQuestion.choice(instructions, criteria)
+	return evaluate(state, { "q": q }, model)
+
+
+## Evaluates a single Score question and returns an async handle.
+func score(
+	state: Variant,
+	instructions: Variant,
+	criteria: Array,
+	model: String = "",
+) -> JevEvaluation:
+	var q: Variant = instructions
+	if not (q is JevScoreQuestion or (q is Dictionary and str(q.get("type", "")) == "score")):
+		q = JevQuestion.score(instructions, criteria)
+	return evaluate(state, { "q": q }, model)
+
+
+## Evaluates a single Noul question and returns an async handle.
+func noul(
+	state: Variant,
+	instructions: Variant,
+	criteria: Dictionary = { },
+	model: String = "",
+) -> JevEvaluation:
+	var q: Variant = instructions
+	if not (q is JevNoulQuestion or (q is Dictionary and str(q.get("type", "")) == "noul")):
+		q = JevQuestion.noul(instructions, criteria)
+	return evaluate(state, { "q": q }, model)
+
+
+## Requests available model metadata from the API.
+func list_models() -> JevModelsRequest:
+	var request := JevModelsRequest.new()
+
+	var effective_key := _get_effective_api_key()
+	if effective_key.is_empty():
+		var error_message := "Missing API key. Set Jev.api_key, configure 'jev/config/api_key' in ProjectSettings, or set TYPESAFE_API_KEY environment variable."
+		push_error("Jev: " + error_message)
+		_emit_models_validation_failure.call_deferred(request, error_message)
+		return request
+
+	var effective_url := _get_effective_models_endpoint()
+	var effective_timeout := _get_effective_timeout()
+
+	_execute_list_models.call_deferred(request, effective_url, effective_key, effective_timeout)
+	return request
 
 
 func _resolve_state(state: Variant) -> Variant:
@@ -245,6 +302,124 @@ func _emit_validation_failure(evaluation: JevEvaluation, message: String) -> voi
 	evaluation._fail(JevError.Code.VALIDATION_ERROR, message)
 
 
+func _emit_models_validation_failure(request: JevModelsRequest, message: String) -> void:
+	request._fail(JevError.Code.VALIDATION_ERROR, message)
+
+
+func _execute_list_models(
+	request: JevModelsRequest,
+	url: String,
+	request_api_key: String,
+	timeout: float,
+) -> void:
+	request._start_running()
+
+	var headers: PackedStringArray = [
+		"Authorization: Bearer " + request_api_key,
+		"Accept: application/json",
+		"User-Agent: GodotJev/1.0 (Godot %s)" % Engine.get_version_info()["string"],
+	]
+
+	var attempt := 0
+	while true:
+		if request.is_finished():
+			return
+
+		var retries_allowed := request.get_max_retries()
+		if retries_allowed < 0:
+			retries_allowed = _get_effective_max_retries()
+
+		var http_request := HTTPRequest.new()
+		http_request.timeout = timeout
+		add_child(http_request)
+
+		request._set_cancel_callback(
+			func() -> void:
+				if is_instance_valid(http_request):
+					http_request.cancel_request()
+					http_request.queue_free(),
+		)
+
+		var request_error := http_request.request(url, headers, HTTPClient.METHOD_GET)
+		if request_error != OK:
+			if is_instance_valid(http_request):
+				http_request.queue_free()
+			request._fail(
+				JevError.Code.NETWORK_ERROR,
+				"Failed to start HTTP request (error code %d)." % request_error,
+			)
+			return
+
+		var response: Array = await http_request.request_completed
+		if not is_instance_valid(http_request):
+			return
+
+		var result: int = response[0]
+		var response_code: int = response[1]
+		var response_headers: PackedStringArray = response[2]
+		var response_body: PackedByteArray = response[3]
+		http_request.queue_free()
+
+		if request.is_finished():
+			return
+
+		if (response_code == 429 or response_code == 529) and attempt < retries_allowed:
+			attempt += 1
+			var backoff_delay: float = _calculate_backoff(attempt, response_headers)
+			await get_tree().create_timer(backoff_delay).timeout
+			continue
+
+		if result != HTTPRequest.RESULT_SUCCESS:
+			var error_message := _http_result_to_string(result)
+			request._fail(JevError.Code.NETWORK_ERROR, error_message, response_code)
+			return
+
+		var response_text := response_body.get_string_from_utf8()
+
+		if response_code < 200 or response_code >= 300:
+			var error_details: Dictionary = { }
+			var parsed_json: Variant = JSON.parse_string(response_text)
+			if parsed_json is Dictionary:
+				error_details = parsed_json
+			var error_message := "HTTP error %d: %s" % [response_code, response_text]
+			request._fail(
+				JevError.Code.HTTP_ERROR,
+				error_message,
+				response_code,
+				response_text,
+				error_details,
+			)
+			return
+
+		var json_parser := JSON.new()
+		var parse_error := json_parser.parse(response_text)
+		if parse_error != OK:
+			var error_message := "Failed to parse JSON response: %s (line %d)" % [
+				json_parser.get_error_message(),
+				json_parser.get_error_line(),
+			]
+			request._fail(
+				JevError.Code.JSON_PARSE_ERROR,
+				error_message,
+				response_code,
+				response_text,
+			)
+			return
+
+		var data: Variant = json_parser.data
+		if not (data is Dictionary):
+			request._fail(
+				JevError.Code.JSON_PARSE_ERROR,
+				"Unexpected response format (not a JSON object).",
+				response_code,
+				response_text,
+			)
+			return
+
+		request._finish_success(data)
+		return
+
+
 func _calculate_backoff(attempt: int, headers: PackedStringArray) -> float:
 	for header: String in headers:
 		if header.to_lower().begins_with("retry-after:"):
@@ -307,7 +482,7 @@ func _get_effective_api_key() -> String:
 func _get_effective_model(model: String) -> String:
 	if not model.is_empty():
 		return model
-	return str(JevConfig.get_config(JevConfig.Type.MODEL))
+	return str(JevConfig.get_config(JevConfig.Type.DEFAULT_MODEL))
 
 
 func _get_effective_base_url() -> String:
@@ -317,13 +492,22 @@ func _get_effective_base_url() -> String:
 	return base_url.trim_suffix("/")
 
 
-func _get_effective_endpoint() -> String:
-	var path := str(JevConfig.get_config(JevConfig.Type.ENDPOINT))
+func _get_effective_systemone_endpoint() -> String:
+	var path := str(JevConfig.get_config(JevConfig.Type.SYSTEMONE))
 	if path.is_empty():
-		path = JevConfig.ENDPOINT
+		path = JevConfig.SYSTEMONE
 	if not path.begins_with("/"):
 		path = "/" + path
-	return path
+	return _get_effective_base_url() + path
+
+
+func _get_effective_models_endpoint() -> String:
+	var path := str(JevConfig.get_config(JevConfig.Type.MODELS))
+	if path.is_empty():
+		path = JevConfig.MODELS
+	if not path.begins_with("/"):
+		path = "/" + path
+	return _get_effective_base_url() + path
 
 
 func _get_effective_timeout() -> float:

@@ -126,10 +126,10 @@ var questions: Dictionary = {
 
 ## 4. Dispatching & Signal Lifecycle
 
-Dispatch via `Jev.evaluate()`. The returned `JevEvaluation` RefCounted handle manages
+### Batch Evaluation
+Dispatch batch requests via `Jev.evaluate()`. The returned `JevEvaluation` RefCounted handle manages
 network requests and emits `finished(evaluation: JevEvaluation)` upon completion.
 
-### Signal Connection (Primary)
 ```gdscript
 func evaluate_situation() -> void:
 	var state := get_current_state()
@@ -149,6 +149,41 @@ func _on_evaluation_finished(evaluation: JevEvaluation) -> void:
 	var peril := evaluation.get_score("peril_level")
 	var escape_prob := evaluation.get_noul("can_escape")
 	apply_tactics(action, peril, escape_prob)
+```
+
+### Single-Shot Shortcuts
+For one-off decisions, use direct shortcuts without constructing a questions dictionary.
+Calling getters without arguments extracts the single answer directly:
+
+```gdscript
+# Choice shortcut: supports criteria Dictionary or Array of options
+var choice_eval := Jev.choice(state, "Best move?", ["retreat", "attack"])
+await choice_eval.finished
+if choice_eval.is_success():
+	print("Action: ", choice_eval.get_choice(), " (conf: ", choice_eval.get_confidence(), ")")
+
+# Noul shortcut: calibrated probability (0.0 to 1.0)
+var noul_eval := Jev.noul(state, "Is player trapped?")
+await noul_eval.finished
+if noul_eval.is_success():
+	print("Trapped probability: ", noul_eval.get_noul())
+
+# Score shortcut: ordered rubric levels
+var score_eval := Jev.score(state, "Hazard grade", ["Low", "Medium", "High"])
+await score_eval.finished
+if score_eval.is_success():
+	print("Hazard score: ", score_eval.get_score())
+```
+
+### Listing Models
+Query available models and aliases from TypeSafe AI asynchronously:
+
+```gdscript
+var models_req := Jev.list_models()
+await models_req.finished
+if models_req.is_success():
+	for model: Dictionary in models_req.get_models():
+		print(model.get("name", ""), ": ", model.get("description", ""))
 ```
 
 ### Await Alternative
@@ -207,9 +242,8 @@ else:
 ```
 
 ### Error Codes (`JevError.Code`)
-- `VALIDATION_FAILED`: Invalid state payload, missing criteria, or empty questions dictionary.
-- `HTTP_ERROR`: Transport or network failure.
-- `API_ERROR`: Upstream rejection or authentication failure.
-- `TIMEOUT`: Request exceeded timeout threshold.
-- `PARSE_ERROR`: Response JSON parsing failure.
-- `CANCELED`: Evaluation canceled manually or via `bind_node()`.
+- `VALIDATION_ERROR` (1): Invalid state payload, missing criteria, empty questions, or missing API key.
+- `NETWORK_ERROR` (2): Transport, DNS, TLS, or request timeout failure.
+- `HTTP_ERROR` (3): Server HTTP rejection (e.g. 401 Unauthorized, 422 Unprocessable Entity, 500).
+- `JSON_PARSE_ERROR` (4): Server response body JSON parsing failure.
+- `CANCELED` (5): Evaluation canceled manually or automatically via `bind_node()`.

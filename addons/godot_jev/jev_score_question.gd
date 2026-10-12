@@ -6,9 +6,9 @@ extends JevQuestion
 @export var criteria: Array = []
 
 
-func _init(instructions: Variant = "", criteria: Array = []) -> void:
-	super(instructions)
-	self.criteria = criteria
+func _init(p_instructions: Variant = "", p_criteria: Array = []) -> void:
+	super(p_instructions)
+	criteria = p_criteria
 
 
 ## Converts the question to an API request dictionary.

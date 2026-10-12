@@ -6,8 +6,8 @@ extends Resource
 @export var instructions: Variant = ""
 
 
-func _init(instructions: Variant = "") -> void:
-	self.instructions = instructions
+func _init(p_instructions: Variant = "") -> void:
+	instructions = p_instructions
 
 
 ## Converts the question to an API request dictionary.
@@ -26,5 +26,5 @@ static func score(instructions: Variant, criteria: Array) -> JevScoreQuestion:
 
 
 ## Creates a Noul Question.
-static func noul(instructions: Variant, criteria: Dictionary = {}) -> JevNoulQuestion:
+static func noul(instructions: Variant, criteria: Dictionary = { }) -> JevNoulQuestion:
 	return JevNoulQuestion.new(instructions, criteria)
