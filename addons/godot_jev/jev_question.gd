@@ -16,12 +16,12 @@ func to_dict() -> Dictionary:
 
 
 ## Creates a Choice Question.
-static func choice(instructions: Variant, criteria: Dictionary) -> JevChoiceQuestion:
+static func choice(instructions: Variant, criteria: Variant = { }) -> JevChoiceQuestion:
 	return JevChoiceQuestion.new(instructions, criteria)
 
 
 ## Creates a Score Question.
-static func score(instructions: Variant, criteria: Array) -> JevScoreQuestion:
+static func score(instructions: Variant, criteria: Array = []) -> JevScoreQuestion:
 	return JevScoreQuestion.new(instructions, criteria)
 
 

@@ -65,9 +65,9 @@ func cancel() -> void:
 	if is_finished():
 		return
 	_unbind_node()
+	_fail(JevError.Code.CANCELED, "Evaluation was canceled.", 0, "", { }, Status.CANCELED)
 	if _cancel_callback.is_valid():
 		_cancel_callback.call()
-	_fail(JevError.Code.CANCELED, "Evaluation was canceled.", 0, "", { }, Status.CANCELED)
 
 
 ## Returns true if the evaluation has completed, failed, or was canceled.
