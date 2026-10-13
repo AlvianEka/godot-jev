@@ -1,10 +1,24 @@
 extends Node
 ## Singleton client for evaluating game state with TypeSafe AI's Jev engine.
 
-const _USER_AGENT := "GodotJev/1.0"
+## Addon version.
+const VERSION := "1.0"
 
 ## Runtime API key override. When empty, falls back to ProjectSettings or environment variables.
 var api_key: String = ""
+
+var _user_agent: String = ""
+
+
+func _init() -> void:
+	var engine_info := Engine.get_version_info()
+	_user_agent = "godot-jev/%s (Godot/%d.%d.%d; %s)" % [
+		VERSION,
+		engine_info.get("major", 0),
+		engine_info.get("minor", 0),
+		engine_info.get("patch", 0),
+		OS.get_name(),
+	]
 
 
 ## Evaluates state against a dictionary of questions and returns an async handle.
@@ -196,7 +210,7 @@ func _execute_evaluation(
 	var headers: PackedStringArray = [
 		"Authorization: Bearer " + request_api_key,
 		"Content-Type: application/json",
-		"User-Agent: " + _USER_AGENT,
+		"User-Agent: " + _user_agent,
 	]
 	var json_payload := JSON.stringify(body)
 	_execute_http(evaluation, url, headers, HTTPClient.METHOD_POST, json_payload, timeout)
@@ -215,7 +229,7 @@ func _execute_list_models(
 	var headers: PackedStringArray = [
 		"Authorization: Bearer " + request_api_key,
 		"Accept: application/json",
-		"User-Agent: " + _USER_AGENT,
+		"User-Agent: " + _user_agent,
 	]
 	_execute_http(request, url, headers, HTTPClient.METHOD_GET, "", timeout)
 
