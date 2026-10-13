@@ -24,7 +24,10 @@ var http_status: int = 0
 var raw_body: String = ""
 
 ## Parsed error payload from the server, if available.
-var details: Dictionary = {}
+var details: Dictionary = { }
+
+## TypeSafe request ID returned by the server, or an empty string if unavailable.
+var request_id: String = ""
 
 
 func _init(
@@ -32,13 +35,15 @@ func _init(
 	p_message: String = "",
 	p_http_status: int = 0,
 	p_raw_body: String = "",
-	p_details: Dictionary = {},
+	p_details: Dictionary = { },
+	p_request_id: String = "",
 ) -> void:
 	code = p_code
 	message = p_message
 	http_status = p_http_status
 	raw_body = p_raw_body
 	details = p_details
+	request_id = p_request_id
 
 
 ## Returns true if the evaluation was canceled.
@@ -57,4 +62,9 @@ func is_auth_error() -> bool:
 
 
 func _to_string() -> String:
-	return "[JevError code=%d http_status=%d message=\"%s\"]" % [code, http_status, message]
+	return "[JevError code=%d http_status=%d request_id=\"%s\" message=\"%s\"]" % [
+		code,
+		http_status,
+		request_id,
+		message,
+	]

@@ -18,6 +18,7 @@ var status: Status = Status.PENDING
 
 var _error: JevError = null
 var _raw_response: Dictionary = { }
+var _request_id: String = ""
 var _latency_ms: float = 0.0
 var _start_time_ticks: int = 0
 var _max_retries: int = -1
@@ -109,6 +110,11 @@ func get_raw_response() -> Dictionary:
 	return _raw_response
 
 
+## Returns the TypeSafe request ID returned by the server, or an empty string if unavailable.
+func get_request_id() -> String:
+	return _request_id
+
+
 func _get_default_cancel_message() -> String:
 	return "Operation was canceled."
 
@@ -119,6 +125,10 @@ func _parse_response_data(_response_data: Dictionary) -> void:
 
 func _set_cancel_callback(callback: Callable) -> void:
 	_cancel_callback = callback
+
+
+func _set_request_id(p_request_id: String) -> void:
+	_request_id = p_request_id
 
 
 func _start_running() -> void:
@@ -149,7 +159,7 @@ func _fail(
 		return
 	_unbind_node()
 	_latency_ms = float(Time.get_ticks_msec() - _start_time_ticks)
-	_error = JevError.new(code, message, http_status, raw_body, details)
+	_error = JevError.new(code, message, http_status, raw_body, details, _request_id)
 	status = target_status
 	finished.emit(self)
 

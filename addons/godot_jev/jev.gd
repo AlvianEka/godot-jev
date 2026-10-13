@@ -277,6 +277,12 @@ func _execute_http(
 		var response_headers: PackedStringArray = response[2]
 		var response_body: PackedByteArray = response[3]
 
+		var request_id := _extract_header(response_headers, "x-typesafe-request-id")
+		if request_id.is_empty():
+			request_id = _extract_header(response_headers, "x-request-id")
+		if not request_id.is_empty():
+			handle._set_request_id(request_id)
+
 		if (response_code == 429 or response_code == 529) and attempt < retries_allowed:
 			attempt += 1
 			var backoff_delay: float = _calculate_backoff(attempt, response_headers)
@@ -334,14 +340,22 @@ func _execute_http(
 		return
 
 
-func _calculate_backoff(attempt: int, headers: PackedStringArray) -> float:
+func _extract_header(headers: PackedStringArray, header_name: String) -> String:
+	var prefix := header_name.to_lower() + ":"
 	for header: String in headers:
-		if header.to_lower().begins_with("retry-after:"):
+		if header.to_lower().begins_with(prefix):
 			var header_parts := header.split(":", false, 1)
 			if header_parts.size() > 1:
-				var retry_after_seconds := header_parts[1].strip_edges().to_float()
-				if retry_after_seconds > 0.0:
-					return retry_after_seconds
+				return header_parts[1].strip_edges()
+	return ""
+
+
+func _calculate_backoff(attempt: int, headers: PackedStringArray) -> float:
+	var retry_after_str := _extract_header(headers, "retry-after")
+	if not retry_after_str.is_empty():
+		var retry_after_seconds := retry_after_str.to_float()
+		if retry_after_seconds > 0.0:
+			return retry_after_seconds
 
 	var base_delay: float = pow(2.0, float(attempt - 1))
 	var jitter: float = randf_range(0.1, 0.4)
