@@ -8,8 +8,8 @@ var api_key: String = ""
 
 
 ## Evaluates state against a dictionary of questions and returns an async handle.
-func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevEvaluation:
-	var evaluation := JevEvaluation.new()
+func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevEvaluationHandle:
+	var evaluation := JevEvaluationHandle.new()
 
 	var resolved_state: Variant = _resolve_state(state)
 	if not resolved_state and state:
@@ -123,7 +123,7 @@ func choice(
 	instructions: Variant,
 	criteria: Variant = { },
 	model: String = "",
-) -> JevEvaluation:
+) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevChoiceQuestion or (q is Dictionary and str(q.get("type", "")) == "choice")):
 		q = JevQuestion.choice(instructions, criteria)
@@ -136,7 +136,7 @@ func score(
 	instructions: Variant,
 	criteria: Array = [],
 	model: String = "",
-) -> JevEvaluation:
+) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevScoreQuestion or (q is Dictionary and str(q.get("type", "")) == "score")):
 		q = JevQuestion.score(instructions, criteria)
@@ -149,7 +149,7 @@ func noul(
 	instructions: Variant,
 	criteria: Dictionary = { },
 	model: String = "",
-) -> JevEvaluation:
+) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevNoulQuestion or (q is Dictionary and str(q.get("type", "")) == "noul")):
 		q = JevQuestion.noul(instructions, criteria)
@@ -157,14 +157,14 @@ func noul(
 
 
 ## Requests available model metadata from the API.
-func list_models() -> JevModelsRequest:
-	var request := JevModelsRequest.new()
+func list_models() -> JevModelsHandle:
+	var request := JevModelsHandle.new()
 
 	var effective_key := _get_effective_api_key()
 	if effective_key.is_empty():
 		var error_message := "Missing API key. Set Jev.api_key, configure 'jev/config/api_key' in ProjectSettings, or set TYPESAFE_API_KEY environment variable."
 		push_error("Jev: " + error_message)
-		_emit_models_validation_failure.call_deferred(request, error_message)
+		_emit_validation_failure.call_deferred(request, error_message)
 		return request
 
 	var effective_url := _get_effective_models_endpoint()
@@ -187,7 +187,7 @@ func _resolve_state(state: Variant) -> Variant:
 
 
 func _execute_evaluation(
-	evaluation: JevEvaluation,
+	evaluation: JevEvaluationHandle,
 	url: String,
 	request_api_key: String,
 	body: Dictionary,
@@ -202,16 +202,12 @@ func _execute_evaluation(
 	_execute_http(evaluation, url, headers, HTTPClient.METHOD_POST, json_payload, timeout)
 
 
-func _emit_validation_failure(evaluation: JevEvaluation, message: String) -> void:
-	evaluation._fail(JevError.Code.VALIDATION_ERROR, message)
-
-
-func _emit_models_validation_failure(request: JevModelsRequest, message: String) -> void:
-	request._fail(JevError.Code.VALIDATION_ERROR, message)
+func _emit_validation_failure(handle: JevHandle, message: String) -> void:
+	handle._fail(JevError.Code.VALIDATION_ERROR, message)
 
 
 func _execute_list_models(
-	request: JevModelsRequest,
+	request: JevModelsHandle,
 	url: String,
 	request_api_key: String,
 	timeout: float,
@@ -225,7 +221,7 @@ func _execute_list_models(
 
 
 func _execute_http(
-	handle: RefCounted,
+	handle: JevHandle,
 	url: String,
 	headers: PackedStringArray,
 	method: HTTPClient.Method,

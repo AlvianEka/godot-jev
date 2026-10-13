@@ -5,8 +5,9 @@
 ## Core Architecture
 
 - **`Jev` Autoload**: Singleton entry point (`Jev.evaluate()`, shortcuts `Jev.choice()`, `Jev.score()`, `Jev.noul()`, and `Jev.list_models()`). Manages HTTP worker pooling, request serialization, and retries.
-- **`JevEvaluation`**: RefCounted async handle returned by `Jev.evaluate()` and shortcuts. Emits `finished(evaluation: JevEvaluation)`. Supports node binding via `eval.bind_node(self)` for auto-cancellation on scene exit.
-- **`JevModelsRequest`**: RefCounted async handle returned by `Jev.list_models()`. Emits `finished(request: JevModelsRequest)`.
+- **`JevHandle`**: Base RefCounted async handle managing status, node binding, retries, and cancellation. Emits `finished(handle: JevHandle)`.
+- **`JevEvaluationHandle`**: RefCounted async handle returned by `Jev.evaluate()` and shortcuts.
+- **`JevModelsHandle`**: RefCounted async handle returned by `Jev.list_models()`.
 - **`JevQuestion`**: Declarative question resources (`JevChoiceQuestion`, `JevScoreQuestion`, `JevNoulQuestion`) created via factory methods (`JevQuestion.choice()`, `JevQuestion.score()`, `JevQuestion.noul()`) or plain dictionaries.
 - **`JevAnswer`**: Typed answer container (`choice`, `score`, `noul`, `confidence`, `probabilities`, `legend`).
 - **`JevError`**: Structured failure payload (`code`, `http_status`, `message`, `details`).
@@ -21,7 +22,7 @@
 
 ### Scoping & Structure
 
-- **Global Classes**: Register all domain classes globally with `class_name Jev*` (e.g. `JevEvaluation`, `JevQuestion`, `JevAnswer`, `JevError`, `JevConfig`).
+- **Global Classes**: Register all domain classes globally with `class_name Jev*` (e.g. `JevHandle`, `JevEvaluationHandle`, `JevModelsHandle`, `JevQuestion`, `JevAnswer`, `JevError`, `JevConfig`).
 - **File Layout**: Flat in `addons/godot_jev/` using `snake_case.gd` mirroring the class name.
 - **Encapsulation**: Leading underscore (`_`) on all private variables and methods.
 - **Declaration Order**: Follow official Godot order (`@tool`, `class_name`/`extends`, docstring, signals, enums, constants, `@export`, public vars, private vars, lifecycle `_init`/`_ready`, public funcs, private funcs, inner classes).
@@ -34,7 +35,7 @@
 
 ### Signals & Async
 
-- **Signals**: Typed parameters (`signal finished(evaluation: JevEvaluation)`), emitted via `signal_name.emit(...)` (never `emit_signal`).
+- **Signals**: Typed parameters (`signal finished(handle: JevHandle)`), emitted via `signal_name.emit(...)` (never `emit_signal`).
 - **Await Safety**: Callers await the handle signal: `var eval := await Jev.evaluate(state, questions).finished`.
 
 ### Documentation & Inspector

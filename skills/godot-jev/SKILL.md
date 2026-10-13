@@ -2,7 +2,7 @@
 name: godot-jev
 description: >
   Evaluate game state using TypeSafe AI's Jev System One engine in Godot 4.
-  Use when integrating Jev, authoring JevQuestion rubrics, handling JevEvaluation
+  Use when integrating Jev, authoring JevQuestion rubrics, handling JevEvaluationHandle
   results, or applying deterministic semantic judgments and calibrated
   probabilities to Godot game state.
 ---
@@ -127,8 +127,8 @@ var questions: Dictionary = {
 ## 4. Dispatching & Signal Lifecycle
 
 ### Batch Evaluation
-Dispatch batch requests via `Jev.evaluate()`. The returned `JevEvaluation` RefCounted handle manages
-network requests and emits `finished(evaluation: JevEvaluation)` upon completion.
+Dispatch batch requests via `Jev.evaluate()`. The returned `JevEvaluationHandle` RefCounted handle manages
+network requests and emits `finished(handle: JevHandle)` upon completion.
 
 ```gdscript
 func evaluate_situation() -> void:
@@ -140,7 +140,7 @@ func evaluate_situation() -> void:
 
 	evaluation.finished.connect(_on_evaluation_finished)
 
-func _on_evaluation_finished(evaluation: JevEvaluation) -> void:
+func _on_evaluation_finished(evaluation: JevEvaluationHandle) -> void:
 	if not evaluation.is_success():
 		_handle_error(evaluation)
 		return
@@ -208,7 +208,7 @@ scene tree (`tree_exited`), the evaluation cancels immediately, preventing stale
 ## 5. Consuming Answers & Error Handling
 
 ### Answer Extraction
-Check status and extract typed results directly from `JevEvaluation`:
+Check status and extract typed results directly from `JevEvaluationHandle`:
 
 ```gdscript
 if evaluation.is_success():
