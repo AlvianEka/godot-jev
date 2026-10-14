@@ -76,17 +76,18 @@ static func get_config(setting_type: Type) -> Variant:
 	return ProjectSettings.get_setting(setting_name, default_value)
 
 
-## Sets the value of an existing Jev project setting.
+## Sets the value of a Jev project setting.
 static func set_config(setting_type: Type, value: Variant) -> void:
 	var setting_name: String = SETTINGS_NAME.get(setting_type, "")
 	if setting_name.is_empty():
 		return
 
-	if not ProjectSettings.has_setting(setting_name):
-		return
-
-	var current_value := get_config(setting_type)
-	if typeof(current_value) != typeof(value):
+	var default_value: Variant = DEFAULT.get(setting_type, null)
+	var expected_type := typeof(default_value)
+	var value_type := typeof(value)
+	if expected_type == TYPE_FLOAT and value_type == TYPE_INT:
+		value = float(value)
+	elif expected_type != value_type:
 		return
 
 	ProjectSettings.set_setting(setting_name, value)

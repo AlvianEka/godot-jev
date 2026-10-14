@@ -3,6 +3,7 @@ extends JevHandle
 ## Asynchronous handle for a running or completed evaluation.
 
 var _answers: Dictionary = { }
+var _single_answer: JevAnswer = null
 var _model: String = ""
 var _input_tokens: int = 0
 var _output_tokens: int = 0
@@ -11,8 +12,8 @@ var _output_tokens: int = 0
 ## Returns the answer for a question ID, or the single answer if omitted.
 func get_answer(question_id: String = "") -> JevAnswer:
 	if question_id.is_empty():
-		if _answers.size() == 1:
-			return _answers.values()[0]
+		if _single_answer != null:
+			return _single_answer
 		return _answers.get("q", null)
 	return _answers.get(question_id, null)
 
@@ -93,4 +94,9 @@ func _parse_response_data(response_data: Dictionary) -> void:
 		for question_id: Variant in raw_answers:
 			var answer_data: Variant = raw_answers[question_id]
 			if answer_data is Dictionary:
-				_answers[str(question_id)] = JevAnswer.new(answer_data)
+				var answer := JevAnswer.new(answer_data)
+				_answers[str(question_id)] = answer
+				if _answers.size() == 1:
+					_single_answer = answer
+				else:
+					_single_answer = null

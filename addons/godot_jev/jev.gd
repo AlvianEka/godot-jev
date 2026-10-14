@@ -1,13 +1,16 @@
 extends Node
-## Singleton client for evaluating game state with TypeSafe AI's Jev engine.
+## Autoload client for evaluating game state with TypeSafe AI's Jev engine.
 
 ## Addon version.
 const VERSION := "1.0"
+
+const _MAX_RETRY_DELAY := 60.0
 
 ## Runtime API key override. When empty, falls back to ProjectSettings or environment variables.
 var api_key: String = ""
 
 var _user_agent: String = ""
+var _http_pool: Array[HTTPRequest] = []
 
 
 func _init() -> void:
@@ -26,7 +29,7 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 	var evaluation := JevEvaluationHandle.new()
 
 	var resolved_state: Variant = _resolve_state(state)
-	if not resolved_state and state:
+	if resolved_state == null and state != null:
 		var error_message := "State object must implement to_dict() or to_state()."
 		push_error("Jev: " + error_message)
 		_emit_validation_failure.call_deferred(evaluation, error_message)
@@ -87,6 +90,7 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 				var converted_criteria: Dictionary = { }
 				for item: Variant in choice_criteria:
 					converted_criteria[str(item)] = null
+				question_dict = question_dict.duplicate()
 				question_dict["criteria"] = converted_criteria
 			elif not (choice_criteria is Dictionary):
 				var error_message := "Choice Question '%s' requires criteria to be a Dictionary or Array." % question_key
@@ -201,19 +205,21 @@ func _resolve_state(state: Variant) -> Variant:
 
 
 func _execute_evaluation(
-	evaluation: JevEvaluationHandle,
+	handle: JevEvaluationHandle,
 	url: String,
 	request_api_key: String,
 	body: Dictionary,
 	timeout: float,
 ) -> void:
+	if handle.is_finished():
+		return
 	var headers: PackedStringArray = [
 		"Authorization: Bearer " + request_api_key,
 		"Content-Type: application/json",
 		"User-Agent: " + _user_agent,
 	]
 	var json_payload := JSON.stringify(body)
-	_execute_http(evaluation, url, headers, HTTPClient.METHOD_POST, json_payload, timeout)
+	_execute_http(handle, url, headers, HTTPClient.METHOD_POST, json_payload, timeout)
 
 
 func _emit_validation_failure(handle: JevHandle, message: String) -> void:
@@ -221,17 +227,19 @@ func _emit_validation_failure(handle: JevHandle, message: String) -> void:
 
 
 func _execute_list_models(
-	request: JevModelsHandle,
+	handle: JevModelsHandle,
 	url: String,
 	request_api_key: String,
 	timeout: float,
 ) -> void:
+	if handle.is_finished():
+		return
 	var headers: PackedStringArray = [
 		"Authorization: Bearer " + request_api_key,
 		"Accept: application/json",
 		"User-Agent: " + _user_agent,
 	]
-	_execute_http(request, url, headers, HTTPClient.METHOD_GET, "", timeout)
+	_execute_http(handle, url, headers, HTTPClient.METHOD_GET, "", timeout)
 
 
 func _execute_http(
@@ -253,9 +261,7 @@ func _execute_http(
 		if retries_allowed < 0:
 			retries_allowed = _get_effective_max_retries()
 
-		var http_request := HTTPRequest.new()
-		http_request.timeout = timeout
-		add_child(http_request)
+		var http_request := _acquire_http_request(timeout)
 
 		handle._set_cancel_callback(
 			func() -> void:
@@ -271,8 +277,8 @@ func _execute_http(
 
 		var request_error := http_request.request(url, headers, method, payload)
 		if request_error != OK:
-			if is_instance_valid(http_request):
-				http_request.queue_free()
+			handle._set_cancel_callback(Callable())
+			_release_http_request(http_request)
 			handle._fail(
 				JevError.Code.NETWORK_ERROR,
 				"Failed to start HTTP request (error code %d)." % request_error,
@@ -280,8 +286,8 @@ func _execute_http(
 			return
 
 		var response: Array = await http_request.request_completed
-		if is_instance_valid(http_request):
-			http_request.queue_free()
+		handle._set_cancel_callback(Callable())
+		_release_http_request(http_request)
 
 		if handle.is_finished():
 			return
@@ -300,7 +306,13 @@ func _execute_http(
 		if (response_code == 429 or response_code == 529) and attempt < retries_allowed:
 			attempt += 1
 			var backoff_delay: float = _calculate_backoff(attempt, response_headers)
-			await get_tree().create_timer(backoff_delay).timeout
+			var timer := get_tree().create_timer(backoff_delay)
+			handle._set_cancel_callback(
+				func() -> void:
+					timer.timeout.emit(),
+			)
+			await timer.timeout
+			handle._set_cancel_callback(Callable())
 			continue
 
 		if result != HTTPRequest.RESULT_SUCCESS:
@@ -354,13 +366,28 @@ func _execute_http(
 		return
 
 
+func _acquire_http_request(timeout: float) -> HTTPRequest:
+	while not _http_pool.is_empty():
+		var pooled: HTTPRequest = _http_pool.pop_back()
+		if is_instance_valid(pooled):
+			pooled.timeout = timeout
+			return pooled
+	var http_request := HTTPRequest.new()
+	http_request.timeout = timeout
+	add_child(http_request)
+	return http_request
+
+
+func _release_http_request(http_request: HTTPRequest) -> void:
+	if is_instance_valid(http_request):
+		_http_pool.append(http_request)
+
+
 func _extract_header(headers: PackedStringArray, header_name: String) -> String:
-	var prefix := header_name.to_lower() + ":"
 	for header: String in headers:
-		if header.to_lower().begins_with(prefix):
-			var header_parts := header.split(":", false, 1)
-			if header_parts.size() > 1:
-				return header_parts[1].strip_edges()
+		var colon_idx := header.find(":")
+		if colon_idx > 0 and header.substr(0, colon_idx).nocasecmp_to(header_name) == 0:
+			return header.substr(colon_idx + 1).strip_edges()
 	return ""
 
 
@@ -369,11 +396,11 @@ func _calculate_backoff(attempt: int, headers: PackedStringArray) -> float:
 	if not retry_after_str.is_empty():
 		var retry_after_seconds := retry_after_str.to_float()
 		if retry_after_seconds > 0.0:
-			return retry_after_seconds
+			return minf(retry_after_seconds, _MAX_RETRY_DELAY)
 
 	var base_delay: float = pow(2.0, float(attempt - 1))
 	var jitter: float = randf_range(0.1, 0.4)
-	return base_delay + jitter
+	return minf(base_delay + jitter, _MAX_RETRY_DELAY)
 
 
 func _http_result_to_string(result: int) -> String:

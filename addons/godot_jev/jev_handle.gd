@@ -58,11 +58,12 @@ func get_max_retries() -> int:
 func cancel(message: String = "") -> void:
 	if is_finished():
 		return
-	_unbind_node()
+	var callback := _cancel_callback
+	_cancel_callback = Callable()
 	var cancel_message := message if not message.is_empty() else _get_default_cancel_message()
 	_fail(JevError.Code.CANCELED, cancel_message, 0, "", { }, Status.CANCELED)
-	if _cancel_callback.is_valid():
-		_cancel_callback.call()
+	if callback.is_valid():
+		callback.call()
 
 
 ## Returns true if the operation has completed, failed, or was canceled.
@@ -140,6 +141,7 @@ func _finish_success(response_data: Dictionary) -> void:
 	if is_finished():
 		return
 	_unbind_node()
+	_cancel_callback = Callable()
 	_latency_ms = float(Time.get_ticks_msec() - _start_time_ticks)
 	_raw_response = response_data
 	_parse_response_data(response_data)
@@ -158,6 +160,7 @@ func _fail(
 	if is_finished():
 		return
 	_unbind_node()
+	_cancel_callback = Callable()
 	_latency_ms = float(Time.get_ticks_msec() - _start_time_ticks)
 	_error = JevError.new(code, message, http_status, raw_body, details, _request_id)
 	status = target_status
