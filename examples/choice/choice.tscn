@@ -1,0 +1,127 @@
+[gd_scene format=3 uid="uid://qogcbjygl3rv"]
+
+[ext_resource type="Script" uid="uid://dvtbx2unpt4wh" path="res://examples/choice/choice.gd" id="1_mh6vj"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oj7ba"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.13333334, 0.13333334, 0.13333334, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
+[sub_resource type="LabelSettings" id="LabelSettings_3k1ov"]
+font_size = 12
+
+[node name="Choice" type="MarginContainer" unique_id=747499011 node_paths=PackedStringArray("scenario_label", "action_input", "submit_button", "popup_container", "popup_label", "popup_footer", "popup_confirm")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+script = ExtResource("1_mh6vj")
+scenario_label = NodePath("PanelContainer/MarginContainer/VBoxContainer/Scenario")
+action_input = NodePath("PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ActionInput")
+submit_button = NodePath("PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/Submit")
+popup_container = NodePath("PanelContainer/MarginContainer/Popup")
+popup_label = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Message")
+popup_footer = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Footer")
+popup_confirm = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Confirm")
+scenarios = Array[Dictionary]([{
+"correct_action": "fire_blast",
+"scenario": "A regenerating troll charges toward you! Only open flame can stop its wounds from closing. Cast a spell from your grimoire to burn it."
+}, {
+"correct_action": "ice_barrier",
+"scenario": "A volley of heavy ballista bolts hurtles straight toward your exposed position! Cast a spell from your grimoire to shield yourself from the impact."
+}, {
+"correct_action": "healing_light",
+"scenario": "Your vanguard knight collapses to one knee, poisoned and bleeding out on the flagstones! Cast a spell from your grimoire to mend your ally."
+}, {
+"correct_action": "shadow_step",
+"scenario": "An iron portcullis slams shut behind you as three stone golems corner you against the wall! Cast a spell from your grimoire to slip away to safety."
+}, {
+"correct_action": "fire_blast",
+"scenario": "A thick wall of enchanted glacier ice seals the dungeon exit while the ceiling begins to collapse! Cast a spell from your grimoire to melt through the barrier."
+}])
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=303760375]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=225623646]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer" unique_id=1145739914]
+layout_mode = 2
+
+[node name="Scenario" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1524831776]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_vertical = 3
+text = "Scenario"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1180468922]
+layout_mode = 2
+
+[node name="ActionInput" type="TextEdit" parent="PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=64374929]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+offset_transform_enabled = true
+placeholder_text = "Chant an incantation or describe casting Fire Blast, Ice Barrier, Healing Light, or Shadow Step..."
+
+[node name="Submit" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=891309897]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+text = "Submit"
+
+[node name="Popup" type="PanelContainer" parent="PanelContainer/MarginContainer" unique_id=351946782]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_oj7ba")
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/MarginContainer/Popup" unique_id=350805126]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/Popup/MarginContainer" unique_id=177938208]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Message" type="Label" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=56909244]
+custom_minimum_size = Vector2(600, 64)
+layout_mode = 2
+text = "Result bla bla bla"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Footer" type="Label" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=2046074231]
+layout_mode = 2
+text = "Confidence: 99% | Effectiveness: 99% | Hazard: 99% | Round-Trip Latency: 0 ms"
+label_settings = SubResource("LabelSettings_3k1ov")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Confirm" type="Button" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=330897733]
+layout_mode = 2
+text = "Confirm"
