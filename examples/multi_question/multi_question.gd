@@ -21,7 +21,7 @@ const APPROACH_OPENERS: Dictionary[String, String] = {
 @export var popup_label: Label
 @export var popup_footer: Label
 @export var popup_confirm: Button
-@export var scenarios: Array[String] = []
+@export_multiline var scenarios: Array[String] = []
 
 var _scenario_deck: Array[String] = []
 var _current_scenario: String = ""
