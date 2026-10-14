@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://duqflx412cdio"]
+
+[ext_resource type="Script" uid="uid://c8xxhw3pr4rd3" path="res://examples/list_models/list_models.gd" id="1_hmosl"]
+[ext_resource type="PackedScene" uid="uid://c5evyugiibio0" path="res://examples/list_models/model_card.tscn" id="2_fsr5f"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_hxxk6"]
+font_size = 20
+
+[node name="ListModels" type="MarginContainer" unique_id=34987892 node_paths=PackedStringArray("model_card_container", "error_label")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+script = ExtResource("1_hmosl")
+model_card = ExtResource("2_fsr5f")
+model_card_container = NodePath("PanelContainer/MarginContainer/VBoxContainer/ScrollContainer/GridContainer")
+error_label = NodePath("Error")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1865099643]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=5463803]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer" unique_id=1336825289]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1278088572]
+layout_mode = 2
+text = "List Models"
+label_settings = SubResource("LabelSettings_hxxk6")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=103623275]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/MarginContainer/VBoxContainer/ScrollContainer" unique_id=1958953366]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="Error" type="Label" parent="." unique_id=813019104]
+visible = false
+layout_mode = 2

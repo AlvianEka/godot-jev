@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://c5evyugiibio0"]
+
+[ext_resource type="Script" uid="uid://b3buqj8t3a13f" path="res://examples/list_models/model_card.gd" id="1_0du5i"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_g2mgd"]
+font_size = 14
+
+[sub_resource type="LabelSettings" id="LabelSettings_i6ggt"]
+font_size = 14
+font_color = Color(1, 1, 1, 0.49803922)
+
+[node name="ModelCard" type="PanelContainer" unique_id=2088798041 node_paths=PackedStringArray("model_name", "description", "release_date")]
+size_flags_horizontal = 3
+size_flags_vertical = 0
+script = ExtResource("1_0du5i")
+model_name = NodePath("MarginContainer/VBoxContainer/ModelName")
+description = NodePath("MarginContainer/VBoxContainer/Description")
+release_date = NodePath("MarginContainer/VBoxContainer/ReleaseDate")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1985575693]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=724432001]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ModelName" type="RichTextLabel" parent="MarginContainer/VBoxContainer" unique_id=1209886227]
+layout_mode = 2
+bbcode_enabled = true
+text = "[b]Model Name[/b]"
+fit_content = true
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Description" type="Label" parent="MarginContainer/VBoxContainer" unique_id=110719222]
+custom_minimum_size = Vector2(32, 20)
+layout_mode = 2
+text = "Description"
+label_settings = SubResource("LabelSettings_g2mgd")
+autowrap_mode = 2
+
+[node name="ReleaseDate" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1805387599]
+layout_mode = 2
+text = "Release Date"
+label_settings = SubResource("LabelSettings_i6ggt")
+horizontal_alignment = 2
+vertical_alignment = 2
