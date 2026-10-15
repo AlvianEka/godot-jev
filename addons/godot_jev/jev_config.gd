@@ -18,6 +18,7 @@ const MODELS: String = "/v1/models"
 const MODEL_LATEST: String = "jev-latest"
 const MODEL_PREVIEW: String = "jev-preview"
 const MODEL_JEV_1_13_0: String = "jev-1.13.0"
+const MODEL_JEV_1_14_0: String = "jev-1.14.0"
 const TIMEOUT: float = 30.0
 const MAX_RETRIES: int = 3
 

@@ -41,7 +41,13 @@ func get_noul(question_id: String = "", default: float = 0.0) -> float:
 	return answer.noul if answer != null and answer.is_noul() else default
 
 
-## Returns the confidence value for a Choice or Score question.
+## Returns the normalized bounding box for a Box question.
+func get_box(question_id: String = "", default: Rect2 = Rect2()) -> Rect2:
+	var answer: JevAnswer = get_answer(question_id)
+	return answer.box if answer != null and answer.is_box() else default
+
+
+## Returns the confidence value for a Choice, Score, or Box question.
 func get_confidence(question_id: String = "", default: float = 0.0) -> float:
 	var answer: JevAnswer = get_answer(question_id)
 	return answer.confidence if answer != null else default

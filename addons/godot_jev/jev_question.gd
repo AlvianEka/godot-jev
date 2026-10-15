@@ -28,3 +28,9 @@ static func score(instructions: Variant, criteria: Array = []) -> JevScoreQuesti
 ## Creates a Noul Question.
 static func noul(instructions: Variant, criteria: Dictionary = { }) -> JevNoulQuestion:
 	return JevNoulQuestion.new(instructions, criteria)
+
+
+## Creates a Box Question.
+## Warning: Box questions are Dreamer-ready (preview) and require model "jev-preview" or "jev-1.14.0".
+static func box(instructions: Variant) -> JevBoxQuestion:
+	return JevBoxQuestion.new(instructions)

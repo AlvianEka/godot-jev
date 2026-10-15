@@ -4,12 +4,13 @@
 
 ## Core Architecture
 
-- **`Jev` Autoload**: Singleton entry point (`Jev.evaluate()`, shortcuts `Jev.choice()`, `Jev.score()`, `Jev.noul()`, and `Jev.list_models()`). Manages HTTP worker pooling, request serialization, and retries.
+- **`Jev` Autoload**: Singleton entry point (`Jev.evaluate()`, shortcuts `Jev.choice()`, `Jev.score()`, `Jev.noul()`, `Jev.box()`, and `Jev.list_models()`). Manages HTTP worker pooling, request serialization, multipart asset uploads, and retries.
 - **`JevHandle`**: Base RefCounted async handle managing status, node binding, retries, and cancellation. Emits `finished(handle: JevHandle)`.
 - **`JevEvaluationHandle`**: RefCounted async handle returned by `Jev.evaluate()` and shortcuts.
 - **`JevModelsHandle`**: RefCounted async handle returned by `Jev.list_models()`.
-- **`JevQuestion`**: Declarative question resources (`JevChoiceQuestion`, `JevScoreQuestion`, `JevNoulQuestion`) created via factory methods (`JevQuestion.choice()`, `JevQuestion.score()`, `JevQuestion.noul()`) or plain dictionaries.
-- **`JevAnswer`**: Typed answer container (`choice`, `score`, `noul`, `confidence`, `probabilities`, `legend`).
+- **`JevQuestion`**: Declarative question resources (`JevChoiceQuestion`, `JevScoreQuestion`, `JevNoulQuestion`, `JevBoxQuestion`) created via factory methods (`JevQuestion.choice()`, `JevQuestion.score()`, `JevQuestion.noul()`, `JevQuestion.box()`) or plain dictionaries.
+- **`JevImage`**: RefCounted image asset wrapper supporting `Image`, `Texture2D`, file paths, raw bytes, base64, and `.resized()` limit fitting.
+- **`JevAnswer`**: Typed answer container (`choice`, `score`, `noul`, `box`, `confidence`, `probabilities`, `legend`).
 - **`JevError`**: Structured failure payload (`code`, `http_status`, `message`, `details`).
 
 ## Coding Standards

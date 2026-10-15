@@ -5,7 +5,7 @@ Godot integration for TypeSafe AI's Jev System One evaluation engine.
 ## Language
 
 **State**:
-The data payload (string, Dictionary, Array, or Object) evaluated by the model.
+The data payload (string, Dictionary, Array, Image, Texture2D, JevImage, or Object) evaluated by the model.
 _Avoid_: Context, input data, payload
 
 **Question**:
@@ -32,8 +32,16 @@ _Avoid_: Rating question, ranking question
 A binary proposition question returning a calibrated truth probability between 0.0 and 1.0.
 _Avoid_: Boolean question, binary classifier
 
+**Box Question**:
+A spatial localization question returning a normalized bounding box (`Rect2` from `0.0` to `1.0`) around a target in an image.
+_Avoid_: Detection query, object locator
+
+**Asset**:
+An image (`JevImage`, `Image`, or `Texture2D`) attached to a request and referenced by token inside `state`, `instructions`, or `criteria`.
+_Avoid_: Attachment, media file, upload
+
 **Confidence**:
-The model certainty metric associated with a winning choice or score level.
+The model certainty metric associated with a winning choice, score level, or bounding box.
 _Avoid_: Score certainty, probability score
 
 **Probability Distribution**:

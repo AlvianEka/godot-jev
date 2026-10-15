@@ -5,12 +5,17 @@ extends Node
 const VERSION := "1.0"
 
 const _MAX_RETRY_DELAY := 60.0
+const _MAX_REQUEST_BYTES := 32 * 1024 * 1024
+const _MAX_REFERENCE_BYTES := 1024
+const _MAX_TOTAL_REFERENCE_BYTES := 65536
 
 ## Runtime API key override. When empty, falls back to ProjectSettings or environment variables.
 var api_key: String = ""
 
 var _user_agent: String = ""
 var _http_pool: Array[HTTPRequest] = []
+var _inline_ref_regex: RegEx = RegEx.new()
+var _crypto: Crypto = Crypto.new()
 
 
 func _init() -> void:
@@ -22,10 +27,18 @@ func _init() -> void:
 		engine_info.get("patch", 0),
 		OS.get_name(),
 	]
+	_inline_ref_regex.compile("<image:[0-9a-f]{32}>")
 
 
-## Evaluates state against a dictionary of questions and returns an async handle.
-func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevEvaluationHandle:
+## Evaluates state against a dictionary of questions and returns an async handle.[br]
+## Warning: Passing images or Box questions is Dreamer-ready (preview) and automatically attaches
+## the TypeSafe-Danger-Zone-Images header. Box questions require model "jev-preview" or "jev-1.14.0".
+func evaluate(
+	state: Variant,
+	questions: Dictionary,
+	model: String = "",
+	assets: Dictionary = { },
+) -> JevEvaluationHandle:
 	var evaluation := JevEvaluationHandle.new()
 
 	var resolved_state: Variant = _resolve_state(state)
@@ -35,8 +48,47 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		_emit_validation_failure.call_deferred(evaluation, error_message)
 		return evaluation
 
+	var alias_by_id: Dictionary = { }
+	var coerced_by_id: Dictionary = { }
+	var collected_assets: Dictionary = { }
+	for raw_ref: Variant in assets:
+		if not (raw_ref is String):
+			var error_message := "Asset reference key must be a String."
+			push_error("Jev: " + error_message)
+			_emit_validation_failure.call_deferred(evaluation, error_message)
+			return evaluation
+		var ref_key: String = raw_ref as String
+		if ref_key.strip_edges().is_empty():
+			var error_message := "Asset reference key cannot be empty or whitespace."
+			push_error("Jev: " + error_message)
+			_emit_validation_failure.call_deferred(evaluation, error_message)
+			return evaluation
+		if ref_key.to_utf8_buffer().size() > _MAX_REFERENCE_BYTES:
+			var error_message := "Asset reference key '%s' exceeds 1024 UTF-8 bytes." % ref_key
+			push_error("Jev: " + error_message)
+			_emit_validation_failure.call_deferred(evaluation, error_message)
+			return evaluation
+		var asset_val: Variant = assets[raw_ref]
+		var jev_img: JevImage = _coerce_to_jev_image(asset_val, coerced_by_id)
+		if jev_img == null:
+			var error_message := "Asset '%s' must be a JevImage, Image, or Texture2D." % ref_key
+			push_error("Jev: " + error_message)
+			_emit_validation_failure.call_deferred(evaluation, error_message)
+			return evaluation
+		collected_assets[ref_key] = jev_img
+		alias_by_id[jev_img.get_instance_id()] = ref_key
+		if asset_val is Object:
+			alias_by_id[(asset_val as Object).get_instance_id()] = ref_key
+
+	resolved_state = _replace_assets_in_value(
+		resolved_state,
+		alias_by_id,
+		coerced_by_id,
+		collected_assets,
+	)
+
 	if not (resolved_state is String or resolved_state is Dictionary or resolved_state is Array):
-		var error_message := "State must be a String, Dictionary, Array, or Object implementing to_dict()."
+		var error_message := "State must be a String, Dictionary, Array, Image, Texture2D, JevImage, or Object implementing to_dict()."
 		push_error("Jev: " + error_message)
 		_emit_validation_failure.call_deferred(evaluation, error_message)
 		return evaluation
@@ -48,6 +100,7 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		return evaluation
 
 	var questions_payload: Dictionary = { }
+	var has_box_question := false
 	for key: Variant in questions:
 		var question_key := str(key).strip_edges()
 		if question_key.is_empty():
@@ -61,7 +114,7 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		if question_value is JevQuestion:
 			question_dict = question_value.to_dict()
 		elif question_value is Dictionary:
-			question_dict = question_value
+			question_dict = question_value.duplicate()
 		else:
 			var error_message := "Question '%s' must be a JevQuestion or Dictionary." % question_key
 			push_error("Jev: " + error_message)
@@ -69,7 +122,10 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 			return evaluation
 
 		var question_type := str(question_dict.get("type", ""))
-		if question_type != "choice" and question_type != "score" and question_type != "noul":
+		if (
+			question_type != "choice" and question_type != "score"
+			and question_type != "noul" and question_type != "box"
+		):
 			var error_message := "Question '%s' has invalid or missing type '%s'." % [
 				question_key,
 				question_type,
@@ -84,24 +140,60 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 			_emit_validation_failure.call_deferred(evaluation, error_message)
 			return evaluation
 
+		question_dict["instructions"] = _replace_assets_in_value(
+			question_dict["instructions"],
+			alias_by_id,
+			coerced_by_id,
+			collected_assets,
+		)
+
 		if question_type == "choice":
 			var choice_criteria: Variant = question_dict.get("criteria", null)
 			if choice_criteria is Array:
 				var converted_criteria: Dictionary = { }
 				for item: Variant in choice_criteria:
 					converted_criteria[str(item)] = null
-				question_dict = question_dict.duplicate()
 				question_dict["criteria"] = converted_criteria
-			elif not (choice_criteria is Dictionary):
+			elif choice_criteria is Dictionary:
+				question_dict["criteria"] = _replace_assets_in_value(
+					choice_criteria,
+					alias_by_id,
+					coerced_by_id,
+					collected_assets,
+				)
+			else:
 				var error_message := "Choice Question '%s' requires criteria to be a Dictionary or Array." % question_key
 				push_error("Jev: " + error_message)
 				_emit_validation_failure.call_deferred(evaluation, error_message)
 				return evaluation
 
-		if question_type == "score":
+		elif question_type == "score":
 			var criteria_array: Variant = question_dict.get("criteria", null)
 			if not (criteria_array is Array) or (criteria_array as Array).size() < 2:
 				var error_message := "Score Question '%s' requires criteria Array with at least 2 levels." % question_key
+				push_error("Jev: " + error_message)
+				_emit_validation_failure.call_deferred(evaluation, error_message)
+				return evaluation
+			question_dict["criteria"] = _replace_assets_in_value(
+				criteria_array,
+				alias_by_id,
+				coerced_by_id,
+				collected_assets,
+			)
+
+		elif question_type == "noul":
+			if question_dict.has("criteria"):
+				question_dict["criteria"] = _replace_assets_in_value(
+					question_dict["criteria"],
+					alias_by_id,
+					coerced_by_id,
+					collected_assets,
+				)
+
+		elif question_type == "box":
+			has_box_question = true
+			if question_dict.has("criteria"):
+				var error_message := "Box Question '%s' does not accept criteria." % question_key
 				push_error("Jev: " + error_message)
 				_emit_validation_failure.call_deferred(evaluation, error_message)
 				return evaluation
@@ -125,11 +217,58 @@ func evaluate(state: Variant, questions: Dictionary, model: String = "") -> JevE
 		"questions": questions_payload,
 	}
 
+	var total_ref_bytes := 0
+	var resolved_parts: Array[Dictionary] = []
+	if not collected_assets.is_empty():
+		var assets_wire: Dictionary = { }
+		var part_idx := 0
+		for ref_key: String in collected_assets:
+			total_ref_bytes += ref_key.to_utf8_buffer().size()
+			if total_ref_bytes > _MAX_TOTAL_REFERENCE_BYTES:
+				var error_message := "Total asset reference keys exceed 65536 UTF-8 bytes."
+				push_error("Jev: " + error_message)
+				_emit_validation_failure.call_deferred(evaluation, error_message)
+				return evaluation
+
+			var jev_img: JevImage = collected_assets[ref_key]
+			if not jev_img._resolve():
+				var error_message := "Asset '%s': %s" % [ref_key, jev_img._resolved_error]
+				push_error("Jev: " + error_message)
+				_emit_validation_failure.call_deferred(evaluation, error_message)
+				return evaluation
+
+			var part_name := "asset-%d" % part_idx
+			part_idx += 1
+			assets_wire[ref_key] = { "type": "image", "part": part_name }
+			resolved_parts.append(
+				{
+					"name": part_name,
+					"content_type": jev_img._resolved_content_type,
+					"bytes": jev_img._resolved_bytes,
+				}
+			)
+		request_body["assets"] = assets_wire
+
+	var use_danger_zone_images := has_box_question or not resolved_parts.is_empty()
+	var prepared_request := _build_evaluation_payload(
+		request_body,
+		resolved_parts,
+		effective_key,
+		use_danger_zone_images,
+	)
+	var payload_bytes: PackedByteArray = prepared_request["body"]
+	if payload_bytes.size() > _MAX_REQUEST_BYTES:
+		var error_message := "Request body exceeds 32 MiB limit (%d bytes)." % payload_bytes.size()
+		push_error("Jev: " + error_message)
+		_emit_validation_failure.call_deferred(evaluation, error_message)
+		return evaluation
+
+	var headers: PackedStringArray = prepared_request["headers"]
 	_execute_evaluation.call_deferred(
 		evaluation,
 		effective_url,
-		effective_key,
-		request_body,
+		headers,
+		payload_bytes,
 		effective_timeout,
 	)
 	return evaluation
@@ -141,11 +280,12 @@ func choice(
 	instructions: Variant,
 	criteria: Variant = { },
 	model: String = "",
+	assets: Dictionary = { },
 ) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevChoiceQuestion or (q is Dictionary and str(q.get("type", "")) == "choice")):
 		q = JevQuestion.choice(instructions, criteria)
-	return evaluate(state, { "q": q }, model)
+	return evaluate(state, { "q": q }, model, assets)
 
 
 ## Evaluates a single Score question and returns an async handle.
@@ -154,11 +294,12 @@ func score(
 	instructions: Variant,
 	criteria: Array = [],
 	model: String = "",
+	assets: Dictionary = { },
 ) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevScoreQuestion or (q is Dictionary and str(q.get("type", "")) == "score")):
 		q = JevQuestion.score(instructions, criteria)
-	return evaluate(state, { "q": q }, model)
+	return evaluate(state, { "q": q }, model, assets)
 
 
 ## Evaluates a single Noul question and returns an async handle.
@@ -167,11 +308,26 @@ func noul(
 	instructions: Variant,
 	criteria: Dictionary = { },
 	model: String = "",
+	assets: Dictionary = { },
 ) -> JevEvaluationHandle:
 	var q: Variant = instructions
 	if not (q is JevNoulQuestion or (q is Dictionary and str(q.get("type", "")) == "noul")):
 		q = JevQuestion.noul(instructions, criteria)
-	return evaluate(state, { "q": q }, model)
+	return evaluate(state, { "q": q }, model, assets)
+
+
+## Evaluates a single Box question and returns an async handle.[br]
+## Warning: Box questions are Dreamer-ready (preview) and require model "jev-preview" or "jev-1.14.0".
+func box(
+	state: Variant,
+	instructions: Variant,
+	model: String = "",
+	assets: Dictionary = { },
+) -> JevEvaluationHandle:
+	var q: Variant = instructions
+	if not (q is JevBoxQuestion or (q is Dictionary and str(q.get("type", "")) == "box")):
+		q = JevQuestion.box(instructions)
+	return evaluate(state, { "q": q }, model, assets)
 
 
 ## Requests available model metadata from the API.
@@ -195,6 +351,8 @@ func list_models() -> JevModelsHandle:
 func _resolve_state(state: Variant) -> Variant:
 	if state is String or state is Dictionary or state is Array:
 		return state
+	if state is JevImage or state is Image or state is Texture2D:
+		return state
 	if state is Object:
 		if state.has_method("to_dict"):
 			return state.call("to_dict")
@@ -204,22 +362,141 @@ func _resolve_state(state: Variant) -> Variant:
 	return null
 
 
+func _coerce_to_jev_image(value: Variant, coerced_by_id: Dictionary) -> JevImage:
+	if value is JevImage:
+		return value
+	if value is Image:
+		var obj_id := (value as Object).get_instance_id()
+		if coerced_by_id.has(obj_id):
+			return coerced_by_id[obj_id]
+		var wrapped := JevImage.from_image(value)
+		coerced_by_id[obj_id] = wrapped
+		return wrapped
+	if value is Texture2D:
+		var obj_id := (value as Object).get_instance_id()
+		if coerced_by_id.has(obj_id):
+			return coerced_by_id[obj_id]
+		var wrapped := JevImage.from_texture(value)
+		coerced_by_id[obj_id] = wrapped
+		return wrapped
+	return null
+
+
+func _replace_assets_in_value(
+	value: Variant,
+	alias_by_id: Dictionary,
+	coerced_by_id: Dictionary,
+	collected_assets: Dictionary,
+) -> Variant:
+	if value is String:
+		var text := value as String
+		if text.contains("<image:"):
+			for match_result: RegExMatch in _inline_ref_regex.search_all(text):
+				var ref_str := match_result.get_string()
+				if not collected_assets.has(ref_str):
+					var tracked_img := JevImage._find_tracked(ref_str)
+					if tracked_img != null:
+						var img_id := tracked_img.get_instance_id()
+						if alias_by_id.has(img_id):
+							text = text.replace(ref_str, str(alias_by_id[img_id]))
+						else:
+							collected_assets[ref_str] = tracked_img
+		return text
+	if value is JevImage or value is Image or value is Texture2D:
+		var jev_img := _coerce_to_jev_image(value, coerced_by_id)
+		var raw_id := (value as Object).get_instance_id()
+		var img_id := jev_img.get_instance_id()
+		var ref_key: String = ""
+		if alias_by_id.has(raw_id):
+			ref_key = str(alias_by_id[raw_id])
+		elif alias_by_id.has(img_id):
+			ref_key = str(alias_by_id[img_id])
+		else:
+			ref_key = jev_img.get_reference()
+		collected_assets[ref_key] = jev_img
+		return ref_key
+	if value is Dictionary:
+		var out_dict: Dictionary = { }
+		for k: Variant in value:
+			out_dict[k] = _replace_assets_in_value(
+				value[k],
+				alias_by_id,
+				coerced_by_id,
+				collected_assets,
+			)
+		return out_dict
+	if value is Array:
+		var out_arr: Array = []
+		out_arr.resize((value as Array).size())
+		for i: int in range((value as Array).size()):
+			out_arr[i] = _replace_assets_in_value(
+				value[i],
+				alias_by_id,
+				coerced_by_id,
+				collected_assets,
+			)
+		return out_arr
+	return value
+
+
+func _build_evaluation_payload(
+	body: Dictionary,
+	parts: Array[Dictionary],
+	request_api_key: String,
+	use_danger_zone_images: bool,
+) -> Dictionary:
+	var headers: PackedStringArray = [
+		"Authorization: Bearer " + request_api_key,
+		"User-Agent: " + _user_agent,
+	]
+	if use_danger_zone_images:
+		headers.append("TypeSafe-Danger-Zone-Images: true")
+
+	var json_bytes := JSON.stringify(body).to_utf8_buffer()
+	if parts.is_empty():
+		headers.append("Content-Type: application/json")
+		return { "headers": headers, "body": json_bytes }
+
+	var boundary := "jev-boundary-" + _crypto.generate_random_bytes(16).hex_encode()
+	headers.append("Content-Type: multipart/form-data; boundary=" + boundary)
+
+	var multipart_body := PackedByteArray()
+	var crlf := "\r\n".to_utf8_buffer()
+
+	var request_header := (
+		"--%s\r\nContent-Disposition: form-data; name=\"request\"\r\nContent-Type: application/json\r\n\r\n"
+		% boundary
+	).to_utf8_buffer()
+	multipart_body.append_array(request_header)
+	multipart_body.append_array(json_bytes)
+	multipart_body.append_array(crlf)
+
+	for part: Dictionary in parts:
+		var part_name := str(part.get("name", ""))
+		var content_type := str(part.get("content_type", "application/octet-stream"))
+		var part_bytes: PackedByteArray = part.get("bytes", PackedByteArray())
+		var part_header := (
+			"--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\nContent-Type: %s\r\n\r\n"
+			% [boundary, part_name, part_name, content_type]
+		).to_utf8_buffer()
+		multipart_body.append_array(part_header)
+		multipart_body.append_array(part_bytes)
+		multipart_body.append_array(crlf)
+
+	multipart_body.append_array(("--%s--\r\n" % boundary).to_utf8_buffer())
+	return { "headers": headers, "body": multipart_body }
+
+
 func _execute_evaluation(
 	handle: JevEvaluationHandle,
 	url: String,
-	request_api_key: String,
-	body: Dictionary,
+	headers: PackedStringArray,
+	payload: PackedByteArray,
 	timeout: float,
 ) -> void:
 	if handle.is_finished():
 		return
-	var headers: PackedStringArray = [
-		"Authorization: Bearer " + request_api_key,
-		"Content-Type: application/json",
-		"User-Agent: " + _user_agent,
-	]
-	var json_payload := JSON.stringify(body)
-	_execute_http(handle, url, headers, HTTPClient.METHOD_POST, json_payload, timeout)
+	_execute_http(handle, url, headers, HTTPClient.METHOD_POST, payload, timeout)
 
 
 func _emit_validation_failure(handle: JevHandle, message: String) -> void:
@@ -239,7 +516,7 @@ func _execute_list_models(
 		"Accept: application/json",
 		"User-Agent: " + _user_agent,
 	]
-	_execute_http(handle, url, headers, HTTPClient.METHOD_GET, "", timeout)
+	_execute_http(handle, url, headers, HTTPClient.METHOD_GET, PackedByteArray(), timeout)
 
 
 func _execute_http(
@@ -247,7 +524,7 @@ func _execute_http(
 	url: String,
 	headers: PackedStringArray,
 	method: HTTPClient.Method,
-	payload: String,
+	payload: PackedByteArray,
 	timeout: float,
 ) -> void:
 	handle._start_running()
@@ -275,7 +552,7 @@ func _execute_http(
 					),
 		)
 
-		var request_error := http_request.request(url, headers, method, payload)
+		var request_error := http_request.request_raw(url, headers, method, payload)
 		if request_error != OK:
 			handle._set_cancel_callback(Callable())
 			_release_http_request(http_request)
