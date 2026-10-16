@@ -1,9 +1,14 @@
 extends Control
 
+const RED_INSTRUCTION = "the red circle in `screenshot`"
+const GREEN_INSTRUCTION = "the green square in `screenshot`"
+
 @export var arena: Control
-@export var target_icon: TextureRect
+@export var red_circle: Control
+@export var green_circle: Control
 @export var box_overlay: Control
-@export var submit_button: Button
+@export var red_submit_button: Button
+@export var green_submit_button: Button
 @export var popup_container: Control
 @export var popup_label: Label
 @export var popup_footer: Label
@@ -13,8 +18,10 @@ var _is_evaluating: bool = false
 
 
 func _ready() -> void:
-	submit_button.pressed.connect(_submit)
 	popup_confirm.pressed.connect(_advance_round)
+
+	red_submit_button.pressed.connect(_submit.bind(RED_INSTRUCTION))
+	green_submit_button.pressed.connect(_submit.bind(GREEN_INSTRUCTION))
 
 	popup_container.visible = false
 	box_overlay.visible = false
@@ -25,32 +32,34 @@ func _ready() -> void:
 
 
 func _randomize_icon_position() -> void:
-	if not arena or not target_icon:
+	if not arena:
 		return
-	var max_x := maxf(0.0, arena.size.x - target_icon.size.x)
-	var max_y := maxf(0.0, arena.size.y - target_icon.size.y)
-	target_icon.position = Vector2(randf_range(0.0, max_x), randf_range(0.0, max_y))
+
+	for target in arena.get_children():
+		var max_x := maxf(0.0, arena.size.x - target.size.x)
+		var max_y := maxf(0.0, arena.size.y - target.size.y)
+		target.position = Vector2(randf_range(0.0, max_x), randf_range(0.0, max_y))
 
 
-func _submit() -> void:
+func _submit(instruction: String) -> void:
 	if _is_evaluating:
 		return
 
 	_is_evaluating = true
-	submit_button.disabled = true
+	red_submit_button.disabled = true
+	green_submit_button.disabled = true
 	box_overlay.visible = false
 	popup_container.visible = false
 
 	await RenderingServer.frame_post_draw
 
 	var screenshot := JevImage.from_texture(get_viewport().get_texture()).resized()
-	var instruction := "the blue Godot robot logo"
-	var handle := Jev.box(screenshot, instruction, JevConfig.MODEL_PREVIEW)
+	var handle := Jev.box({ "screenshot": screenshot }, instruction, JevConfig.MODEL_PREVIEW)
 	handle.bind_node(self)
-	handle.finished.connect(_on_evaluation_finished)
+	handle.finished.connect(_on_evaluation_finished.bind(instruction))
 
 
-func _on_evaluation_finished(evaluation: JevEvaluationHandle) -> void:
+func _on_evaluation_finished(evaluation: JevEvaluationHandle, instruction: String) -> void:
 	_is_evaluating = false
 
 	if not evaluation.is_success():
@@ -68,12 +77,13 @@ func _on_evaluation_finished(evaluation: JevEvaluationHandle) -> void:
 	box_overlay.size = pixel_rect.size
 	box_overlay.visible = true
 
-	var icon_rect := target_icon.get_global_rect()
-	var hit := pixel_rect.intersects(icon_rect)
+	var target := red_circle if instruction == RED_INSTRUCTION else green_circle
+	var rect := target.get_global_rect()
+	var hit := pixel_rect.intersects(rect)
 	var main_message := (
-		"Target locked! The bounding box overlaps the icon."
+		"Target locked! The bounding box overlaps the object."
 		if hit
-		else "Target missed. The bounding box did not overlap the icon."
+		else "Target missed. The bounding box did not overlap the object."
 	)
 
 	var footer_message := (
@@ -105,6 +115,7 @@ func _advance_round() -> void:
 	popup_container.visible = false
 	box_overlay.visible = false
 
-	submit_button.disabled = false
+	red_submit_button.disabled = false
+	green_submit_button.disabled = false
 
 	_randomize_icon_position()

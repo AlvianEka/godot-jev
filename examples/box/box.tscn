@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://82wro2l3lt0"]
 
 [ext_resource type="Script" uid="uid://bmulj8yl1ewpe" path="res://examples/box/box.gd" id="1_boxgd"]
-[ext_resource type="Texture2D" uid="uid://ek4uxsvh35bk" path="res://icon.svg" id="2_iconsvg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4lk4u"]
 bg_color = Color(0.101960786, 0.10980392, 0.14117648, 1)
@@ -10,6 +9,16 @@ corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eg3y5"]
+bg_color = Color(1, 0, 0, 1)
+corner_radius_top_left = 32
+corner_radius_top_right = 32
+corner_radius_bottom_right = 32
+corner_radius_bottom_left = 32
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3ojq4"]
+bg_color = Color(0, 1, 0, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oj7ba"]
 content_margin_left = 0.0
@@ -38,7 +47,7 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
-[node name="Box" type="MarginContainer" unique_id=747499011 node_paths=PackedStringArray("arena", "target_icon", "box_overlay", "submit_button", "popup_container", "popup_label", "popup_footer", "popup_confirm")]
+[node name="Box" type="MarginContainer" unique_id=747499011 node_paths=PackedStringArray("arena", "red_circle", "green_circle", "box_overlay", "red_submit_button", "green_submit_button", "popup_container", "popup_label", "popup_footer", "popup_confirm")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -49,10 +58,12 @@ theme_override_constants/margin_top = 32
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 32
 script = ExtResource("1_boxgd")
-arena = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control")
-target_icon = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control/TextureRect")
+arena = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Arena")
+red_circle = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Arena/Red")
+green_circle = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Arena/Green")
 box_overlay = NodePath("BoxOverlay")
-submit_button = NodePath("PanelContainer/MarginContainer/VBoxContainer/Submit")
+red_submit_button = NodePath("PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/Red")
+green_submit_button = NodePath("PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/Green")
 popup_container = NodePath("PanelContainer/MarginContainer/Popup")
 popup_label = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Message")
 popup_footer = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Footer")
@@ -85,21 +96,38 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_4lk4u")
 
-[node name="Control" type="Control" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer" unique_id=156685935]
+[node name="Arena" type="Control" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer" unique_id=156685935]
 layout_mode = 2
 
-[node name="TextureRect" type="TextureRect" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control" unique_id=968308473]
+[node name="Red" type="Panel" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Arena" unique_id=1000096039]
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 0
-offset_right = 96.0
-offset_bottom = 96.0
-texture = ExtResource("2_iconsvg")
-expand_mode = 1
-stretch_mode = 5
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_eg3y5")
 
-[node name="Submit" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=891309897]
+[node name="Green" type="Panel" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Arena" unique_id=1647023143]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_3ojq4")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1560719615]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Red" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=891309897]
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-text = "Locate Godot Icon"
+size_flags_horizontal = 3
+text = "Locate red circle"
+
+[node name="Green" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=1578511191]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Locate green circle"
 
 [node name="Popup" type="PanelContainer" parent="PanelContainer/MarginContainer" unique_id=351946782]
 visible = false
