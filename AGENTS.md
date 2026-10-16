@@ -1,56 +1,29 @@
-## Project Overview
+# Godot Jev
 
-**Godot Jev** is a Godot 4.x addon integrating TypeSafe AI's Jev System One evaluation engine. It enables games to run fast, deterministic semantic judgments (categorical choices, ordinal scores, calibrated binary probabilities) over structured game state in a single forward pass without generative LLM chat loops.
+Godot 4.x addon (`addons/godot_jev/`) integrating TypeSafe AI's Jev System One engine for single-pass semantic judgments over structured game state.
 
-## Core Architecture
+## Codebase Map (`addons/godot_jev/`)
 
-- **`Jev` Autoload**: Singleton entry point (`Jev.evaluate()`, shortcuts `Jev.choice()`, `Jev.score()`, `Jev.noul()`, `Jev.box()`, and `Jev.list_models()`). Manages HTTP worker pooling, request serialization, multipart asset uploads, and retries.
-- **`JevHandle`**: Base RefCounted async handle managing status, node binding, retries, and cancellation. Emits `finished(handle: JevHandle)`.
-- **`JevEvaluationHandle`**: RefCounted async handle returned by `Jev.evaluate()` and shortcuts.
-- **`JevModelsHandle`**: RefCounted async handle returned by `Jev.list_models()`.
-- **`JevQuestion`**: Declarative question resources (`JevChoiceQuestion`, `JevScoreQuestion`, `JevNoulQuestion`, `JevBoxQuestion`) created via factory methods (`JevQuestion.choice()`, `JevQuestion.score()`, `JevQuestion.noul()`, `JevQuestion.box()`) or plain dictionaries.
-- **`JevImage`**: RefCounted image asset wrapper supporting `Image`, `Texture2D`, file paths, raw bytes, base64, and `.resized()` limit fitting.
-- **`JevAnswer`**: Typed answer container (`choice`, `score`, `noul`, `box`, `confidence`, `probabilities`, `legend`).
-- **`JevError`**: Structured failure payload (`code`, `http_status`, `message`, `details`).
+- **`plugin.gd`**: `EditorPlugin` registering `JevConfig` settings and the `Jev` autoload.
+- **`jev_config.gd` (`JevConfig`)**: `ProjectSettings` registration (`jev/config/*`, `jev/endpoint/*`), model/default constants, and `TYPESAFE_API_KEY` env fallback.
+- **`jev.gd` (`Jev` Autoload)**: Entry points (`evaluate`, `choice`, `score`, `noul`, `box`, `list_models`), state/question validation, `<image:hash>` extraction, `multipart/form-data` builder, `HTTPRequest` worker pooling, and 429 retry loop.
+- **`jev_handle.gd` (`JevHandle`)**: Base async handle managing `Status`, `bind_node()` `tree_exited` auto-cancellation, retry state, latency/error tracking, and `finished(handle: JevHandle)`.
+- **`jev_evaluation_handle.gd` (`JevEvaluationHandle`)**: Typed answer getters (`get_choice`, `get_score`, `get_noul`, `get_box`, `get_confidence`, `get_probabilities`, `get_legend`) and token usage metadata.
+- **`jev_models_handle.gd` (`JevModelsHandle`)**: Async handle wrapping `/v1/models` list responses.
+- **`jev_question.gd` (`JevQuestion`) & `jev_{choice,score,noul,box}_question.gd`**: `Resource` classes, static factories, and `to_dict()` request serialization.
+- **`jev_image.gd` (`JevImage`)**: Image loader (`Image`, `Texture2D`, path, bytes, base64), inline `<image:hash>` token formatting, and `resized()` / `fit_limits()` clamping (`256..1568` px).
+- **`jev_answer.gd` (`JevAnswer`)**: Response parser converting raw question JSON into typed `choice`, `score`, `noul`, `box` (`Rect2`), `confidence`, `probabilities`, and `legend`.
+- **`jev_error.gd` (`JevError`)**: Failure container (`Code` enum, `http_status`, `message`, `details`).
 
-## Coding Standards
+## Conventions
 
-### Language & Typing
-
-- **Public API**: Strict static typing on all exported symbols, parameters, return types, and signals.
-- **Internals**: Type inference (`:=`) where type is explicit; `Variant` for dynamic JSON and state payloads.
-- **Collections**: 1D typed arrays (`Array[String]`, `Array[float]`) where homogeneous; typed dictionaries (`Dictionary[KeyType, ValueType]`) for fixed mappings; plain `Dictionary` for dynamic JSON payloads. Never use nested typed collections (no `Array[Array[T]]`).
-
-### Scoping & Structure
-
-- **Global Classes**: Register all domain classes globally with `class_name Jev*` (e.g. `JevHandle`, `JevEvaluationHandle`, `JevModelsHandle`, `JevQuestion`, `JevAnswer`, `JevError`, `JevConfig`).
-- **File Layout**: Flat in `addons/godot_jev/` using `snake_case.gd` mirroring the class name.
-- **Encapsulation**: Leading underscore (`_`) on all private variables and methods.
-- **Declaration Order**: Follow official Godot order (`@tool`, `class_name`/`extends`, docstring, signals, enums, constants, `@export`, public vars, private vars, lifecycle `_init`/`_ready`, public funcs, private funcs, inner classes).
-
-### Nodes & Lifecycle
-
-- **No NodePath**: Never use `NodePath` or `get_node()`. Use direct object references.
-- **Dynamic Workers**: Manage `HTTPRequest` workers programmatically inside `Jev`, cleanly freeing on completion or timeout.
-- **Lifecycle Binding**: Evaluations bound via `bind_node(node)` must safely cancel when the node leaves the tree.
-
-### Signals & Async
-
-- **Signals**: Typed parameters (`signal finished(handle: JevHandle)`), emitted via `signal_name.emit(...)` (never `emit_signal`).
-- **Await Safety**: Callers await the handle signal: `var eval := await Jev.evaluate(state, questions).finished`.
-
-### Documentation & Inspector
-
-- **Docstrings**: Minimal, concise `##` docstrings on public symbols only. Keep code clean and self-describing; no bulky comment blocks.
-
-### Formatting
-
-- **Formatting**: Hard tabs, double quotes (`"string"`), ~100 char soft limit.
-- **Style**: Standard GDScript conventions adhering to official Godot 4.x styling.
-
----
+- **Flat addon layout**: Keep all addon scripts flat in `addons/godot_jev/jev_*.gd` with matching global `class_name Jev*`, following the official Godot GDScript style guide and declaration order.
+- **Boundary typing**: Explicitly type all public symbols, parameters, return values, and signal parameters. Use `:=` inference internally and `Variant` for dynamic JSON or state payloads.
+- **Collections**: Use 1D typed arrays (`Array[T]`) and typed dictionaries (`Dictionary[K, V]`) for fixed schemas; use plain `Array` and `Dictionary` for nested collections and dynamic JSON payloads.
+- **Managed HTTP workers**: Spawn, pool, and free `HTTPRequest` workers dynamically inside `jev.gd` on completion or timeout.
+- **Minimal docstrings**: Write single-line `##` docstrings on public API symbols only.
 
 ## Context Pointers
 
-- **Domain Terminology**: Consult [`CONTEXT.md`](CONTEXT.md) before naming API parameters, question types, or criteria to avoid forbidden aliases (e.g., use *State* not *Context*, *Criteria* not *Options*).
-- **TypeSafe Primitives & Prompts**: Consult [TypeSafe System One Docs](https://docs.typesafe.ai/llms.txt) when designing question formats, criteria rubrics, or API contracts.
+- **Domain terminology** ([`CONTEXT.md`](CONTEXT.md)): Read before naming symbols, parameters, dictionary keys, or documentation.
+- **TypeSafe API & primitives** ([`https://docs.typesafe.ai/llms.txt`](https://docs.typesafe.ai/llms.txt)): Read when changing wire payloads, endpoints, question schemas, or criteria rubrics.
