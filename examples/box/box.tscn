@@ -1,0 +1,146 @@
+[gd_scene format=3 uid="uid://82wro2l3lt0"]
+
+[ext_resource type="Script" uid="uid://bmulj8yl1ewpe" path="res://examples/box/box.gd" id="1_boxgd"]
+[ext_resource type="Texture2D" uid="uid://ek4uxsvh35bk" path="res://icon.svg" id="2_iconsvg"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4lk4u"]
+bg_color = Color(0.101960786, 0.10980392, 0.14117648, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oj7ba"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.13333334, 0.13333334, 0.13333334, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
+[sub_resource type="LabelSettings" id="LabelSettings_3k1ov"]
+font_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_30o5l"]
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.9, 0.32, 0.73, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="Box" type="MarginContainer" unique_id=747499011 node_paths=PackedStringArray("arena", "target_icon", "box_overlay", "submit_button", "popup_container", "popup_label", "popup_footer", "popup_confirm")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+script = ExtResource("1_boxgd")
+arena = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control")
+target_icon = NodePath("PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control/TextureRect")
+box_overlay = NodePath("BoxOverlay")
+submit_button = NodePath("PanelContainer/MarginContainer/VBoxContainer/Submit")
+popup_container = NodePath("PanelContainer/MarginContainer/Popup")
+popup_label = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Message")
+popup_footer = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Footer")
+popup_confirm = NodePath("PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer/Confirm")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=303760375]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=225623646]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer" unique_id=1145739914]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RichTextLabel" type="RichTextLabel" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=447824568]
+layout_mode = 2
+bbcode_enabled = true
+text = "Captures a viewport screenshot and uses [b]Jev Box Question[/b] to locate the target on screen."
+fit_content = true
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=229852283]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_4lk4u")
+
+[node name="Control" type="Control" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer" unique_id=156685935]
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="PanelContainer/MarginContainer/VBoxContainer/PanelContainer/Control" unique_id=968308473]
+layout_mode = 0
+offset_right = 96.0
+offset_bottom = 96.0
+texture = ExtResource("2_iconsvg")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Submit" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=891309897]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "Locate Godot Icon"
+
+[node name="Popup" type="PanelContainer" parent="PanelContainer/MarginContainer" unique_id=351946782]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_oj7ba")
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/MarginContainer/Popup" unique_id=350805126]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/Popup/MarginContainer" unique_id=177938208]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Message" type="Label" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=56909244]
+custom_minimum_size = Vector2(600, 64)
+layout_mode = 2
+text = "Result bla bla bla"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Footer" type="Label" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=2046074231]
+layout_mode = 2
+text = "Confidence: 99% | Effectiveness: 99% | Hazard: 99% | Round-Trip Latency: 0 ms"
+label_settings = SubResource("LabelSettings_3k1ov")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Confirm" type="Button" parent="PanelContainer/MarginContainer/Popup/MarginContainer/VBoxContainer" unique_id=330897733]
+layout_mode = 2
+text = "Confirm"
+
+[node name="BoxOverlay" type="Panel" parent="." unique_id=470513852]
+visible = false
+top_level = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_30o5l")
