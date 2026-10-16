@@ -127,7 +127,7 @@ text = "Locate red circle"
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Locate green circle"
+text = "Locate green square"
 
 [node name="Popup" type="PanelContainer" parent="PanelContainer/MarginContainer" unique_id=351946782]
 visible = false
